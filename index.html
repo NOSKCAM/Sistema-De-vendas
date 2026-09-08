@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDV - Mercado & Padaria Valle Center</title>
+    <style>
+        :root {
+            --bg-color: #f0f2f5;
+            --primary: #0056b3;
+            --text-dark: #333;
+            --text-light: #fff;
+            --danger: #dc3545;
+            --success: #28a745;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: var(--bg-color); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        
+        /* Cabeçalho */
+        header { background-color: var(--primary); color: var(--text-light); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        header h1 { font-size: 1.5rem; text-transform: uppercase; }
+        .status-caixa { font-weight: bold; background: rgba(0,0,0,0.2); padding: 5px 15px; border-radius: 4px; }
+
+        /* Layout Principal */
+        .container { display: flex; flex: 1; padding: 20px; gap: 20px; }
+        
+        /* Área Esquerda - Tabela de Produtos */
+        .area-produtos { flex: 2; background: #fff; border-radius: 8px; padding: 15px; display: flex; flex-direction: column; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .input-group { display: flex; gap: 10px; margin-bottom: 15px; }
+        .input-group input { padding: 10px; font-size: 1.2rem; border: 1px solid #ccc; border-radius: 4px; outline: none; }
+        #input-codigo { flex: 1; }
+        #input-qtd { width: 80px; text-align: center; }
+        
+        .tabela-container { flex: 1; overflow-y: auto; border: 1px solid #eee; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background-color: #f8f9fa; position: sticky; top: 0; z-index: 1; }
+        .linha-ativa { background-color: #e9ecef; }
+
+        /* Área Direita - Totais e Atalhos */
+        .area-totais { flex: 1; display: flex; flex-direction: column; gap: 20px; }
+        .box-total { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); text-align: right; }
+        .box-total p { font-size: 1.2rem; color: #666; margin-bottom: 5px; }
+        .box-total h2 { font-size: 3rem; color: var(--success); }
+        
+        .box-atalhos { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); flex: 1; }
+        .box-atalhos h3 { margin-bottom: 15px; color: var(--text-dark); border-bottom: 1px solid #eee; padding-bottom: 10px; }
+        .atalho-item { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 0.95rem; }
+        .tecla { background: #e9ecef; padding: 3px 8px; border-radius: 4px; font-weight: bold; border: 1px solid #ccc; }
+
+        /* Modal de Pagamento (Escondido por padrão) */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: none; justify-content: center; align-items: center; z-index: 10; }
+        .modal-content { background: #fff; width: 400px; padding: 25px; border-radius: 8px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+        .modal-content h2 { margin-bottom: 20px; text-align: center; color: var(--primary); border-bottom: 2px solid var(--primary); padding-bottom: 10px; }
+        .form-pagamento { display: flex; flex-direction: column; gap: 15px; }
+        .form-pagamento label { font-weight: bold; font-size: 1.1rem; display: flex; justify-content: space-between; align-items: center; }
+        .form-pagamento input { width: 150px; padding: 8px; font-size: 1.2rem; text-align: right; border: 1px solid #ccc; border-radius: 4px; }
+        .total-pagar { font-size: 1.5rem; color: var(--danger); text-align: center; margin-top: 10px; }
+        .troco { font-size: 1.5rem; color: var(--success); text-align: center; margin-top: 10px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Mercado & Padaria Valle Center - Frente de Caixa</h1>
+        <div class="status-caixa">CAIXA ABERTO - OP: ADMIN</div>
+    </header>
+
+    <div class="container">
+        <div class="area-produtos">
+            <div class="input-group">
+                <input type="number" id="input-qtd" value="1" min="1" placeholder="Qtd">
+                <input type="text" id="input-codigo" placeholder="Código de Barras (Bipe aqui) e aperte Enter" autofocus>
+            </div>
+            
+            <div class="tabela-container">
+                <table id="tabela-itens">
+                    <thead>
+                        <tr>
+                            <th>Item</th>
+                            <th>Código</th>
+                            <th>Descrição</th>
+                            <th>Qtd</th>
+                            <th>V. Unit (R$)</th>
+                            <th>Total (R$)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Itens vão aparecer aqui -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="area-totais">
+            <div class="box-total">
+                <p>Total da Venda</p>
+                <h2 id="total-venda">R$ 0,00</h2>
+            </div>
+
+            <div class="box-atalhos">
+                <h3>Atalhos do Sistema</h3>
+                <div class="atalho-item"><span>Nova Venda</span><span class="tecla">Ctrl + Insert</span></div>
+                <div class="atalho-item"><span>Finalizar Venda (Pagamento)</span><span class="tecla">F2</span></div>
+                <div class="atalho-item"><span>Vendas Pendentes</span><span class="tecla">F4</span></div>
+                <div class="atalho-item"><span>Cancelar Venda</span><span class="tecla">F8</span></div>
+                <div class="atalho-item"><span>Inserir Produto</span><span class="tecla">Enter</span></div>
+                <div class="atalho-item"><span>Fechar / Voltar</span><span class="tecla">ESC</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Pagamento -->
+    <div class="modal-overlay" id="modal-pagamento">
+        <div class="modal-content">
+            <h2>Pagamento (F2)</h2>
+            <div class="total-pagar" id="modal-total-pagar">Total: R$ 0,00</div>
+            <div class="form-pagamento" style="margin-top: 20px;">
+                <label>Dinheiro: <input type="number" id="pg-dinheiro" value="0.00" step="0.01"></label>
+                <label>Pix: <input type="number" id="pg-pix" value="0.00" step="0.01"></label>
+                <label>Cartão: <input type="number" id="pg-cartao" value="0.00" step="0.01"></label>
+            </div>
+            <div class="troco" id="modal-troco">Troco: R$ 0,00</div>
+            <p style="text-align: center; margin-top: 20px; color: #666; font-size: 0.9rem;">Pressione <strong>Enter</strong> para confirmar a venda ou <strong>ESC</strong> para voltar.</p>
+        </div>
+    </div>
+
+    <script>
+        // Banco de Dados Fictício (Futuramente virá do Firestore)
+        const bancoProdutos = {
+            "001": { descricao: "Coca-Cola 2L", preco: 9.50, custo: 7.00 },
+            "002": { descricao: "Pão Francês (Kg)", preco: 14.00, custo: 8.00 },
+            "003": { descricao: "Salgadinho Elma Chips", preco: 5.00, custo: 3.20 }
+        };
+
+        // Variáveis de Estado
+        let carrinho = [];
+        let total = 0;
+        let estadoCaixa = 'venda'; // 'venda' ou 'pagamento'
+
+        // Elementos DOM
+        const inputCodigo = document.getElementById('input-codigo');
+        const inputQtd = document.getElementById('input-qtd');
+        const tabelaItens = document.querySelector('#tabela-itens tbody');
+        const totalVendaDisplay = document.getElementById('total-venda');
+        const modalPagamento = document.getElementById('modal-pagamento');
+        const pgDinheiro = document.getElementById('pg-dinheiro');
+        const pgPix = document.getElementById('pg-pix');
+        const pgCartao = document.getElementById('pg-cartao');
+        const modalTroco = document.getElementById('modal-troco');
+
+        // Função para Formatar Moeda
+        const formataMoeda = (valor) => valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+        // Adicionar Produto
+        function adicionarProduto() {
+            const codigo = inputCodigo.value.trim();
+            const qtd = parseFloat(inputQtd.value) || 1;
+
+            if (bancoProdutos[codigo]) {
+                const produto = bancoProdutos[codigo];
+                const subtotal = produto.preco * qtd;
+                
+                carrinho.push({
+                    item: carrinho.length + 1,
+                    codigo: codigo,
+                    descricao: produto.descricao,
+                    qtd: qtd,
+                    preco: produto.preco,
+                    subtotal: subtotal
+                });
+
+                total += subtotal;
+                atualizarTabela();
+                
+                inputCodigo.value = '';
+                inputQtd.value = '1';
+                inputCodigo.focus();
+            } else if (codigo !== '') {
+                alert("Produto não encontrado!");
+                inputCodigo.value = '';
+                inputCodigo.focus();
+            }
+        }
+
+        // Atualizar Tabela e Totais
+        function atualizarTabela() {
+            tabelaItens.innerHTML = '';
+            carrinho.forEach(prod => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${String(prod.item).padStart(3, '0')}</td>
+                    <td>${prod.codigo}</td>
+                    <td>${prod.descricao}</td>
+                    <td>${prod.qtd}</td>
+                    <td>${formataMoeda(prod.preco)}</td>
+                    <td>${formataMoeda(prod.subtotal)}</td>
+                `;
+                tabelaItens.appendChild(tr);
+            });
+            totalVendaDisplay.innerText = formataMoeda(total);
+            
+            // Rolar tabela para o final automaticamente
+            const container = document.querySelector('.tabela-container');
+            container.scrollTop = container.scrollHeight;
+        }
+
+        // Abrir Modal de Pagamento (F2)
+        function abrirPagamento() {
+            if (carrinho.length === 0) return alert('O carrinho está vazio.');
+            estadoCaixa = 'pagamento';
+            modalPagamento.style.display = 'flex';
+            document.getElementById('modal-total-pagar').innerText = `Total: ${formataMoeda(total)}`;
+            pgDinheiro.value = total.toFixed(2);
+            pgPix.value = '0.00';
+            pgCartao.value = '0.00';
+            calcularTroco();
+            pgDinheiro.focus();
+            pgDinheiro.select();
+        }
+
+        // Fechar Modal (ESC)
+        function fecharModais() {
+            estadoCaixa = 'venda';
+            modalPagamento.style.display = 'none';
+            inputCodigo.focus();
+        }
+
+        // Nova Venda (Ctrl + Insert ou F8)
+        function novaVenda() {
+            carrinho = [];
+            total = 0;
+            atualizarTabela();
+            fecharModais();
+        }
+
+        // Calcular Troco em tempo real
+        function calcularTroco() {
+            const vDinheiro = parseFloat(pgDinheiro.value) || 0;
+            const vPix = parseFloat(pgPix.value) || 0;
+            const vCartao = parseFloat(pgCartao.value) || 0;
+            const totalPago = vDinheiro + vPix + vCartao;
+            const troco = totalPago - total;
+            
+            if (troco >= 0) {
+                modalTroco.innerText = `Troco: ${formataMoeda(troco)}`;
+                modalTroco.style.color = 'var(--success)';
+            } else {
+                modalTroco.innerText = `Falta: ${formataMoeda(Math.abs(troco))}`;
+                modalTroco.style.color = 'var(--danger)';
+            }
+        }
+
+        [pgDinheiro, pgPix, pgCartao].forEach(input => {
+            input.addEventListener('input', calcularTroco);
+            input.addEventListener('focus', (e) => e.target.select());
+        });
+
+        // ==========================================
+        // MAPEAMENTO DE TECLAS (ATALHOS SAC PLUS)
+        // ==========================================
+        window.addEventListener('keydown', function(e) {
+            
+            // F2 - Finalizar Venda
+            if (e.key === 'F2') {
+                e.preventDefault();
+                if (estadoCaixa === 'venda') abrirPagamento();
+            }
+            
+            // F4 - Vendas Pendentes
+            if (e.key === 'F4') {
+                e.preventDefault();
+                if (estadoCaixa === 'venda') alert('Função: Abrir Vendas Pendentes (em desenvolvimento)');
+            }
+
+            // F8 - Cancelar Venda
+            if (e.key === 'F8') {
+                e.preventDefault();
+                if (confirm('Deseja realmente cancelar esta venda?')) novaVenda();
+            }
+
+            // Ctrl + Insert - Nova Venda
+            if (e.ctrlKey && e.key === 'Insert') {
+                e.preventDefault();
+                novaVenda();
+            }
+
+            // ESC - Fechar modais
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                fecharModais();
+            }
+
+            // Enter - Contextual (Adicionar item ou Confirmar Pagamento)
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (estadoCaixa === 'venda') {
+                    adicionarProduto();
+                } else if (estadoCaixa === 'pagamento') {
+                    const pago = (parseFloat(pgDinheiro.value)||0) + (parseFloat(pgPix.value)||0) + (parseFloat(pgCartao.value)||0);
+                    if (pago >= total - 0.01) { // margem de erro de arredondamento
+                        alert('Venda finalizada com sucesso! (Aqui será salva no Firebase)');
+                        novaVenda();
+                    } else {
+                        alert('Valor pago é menor que o total da venda!');
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
